@@ -2,7 +2,7 @@ use core::fmt;
 use std::io::{self, Write};
 use std::{
     fmt::Display,
-    process::{self},
+    process::{self, Command as StdCommand},
 };
 
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl Display for Command {
     }
 }
 
-fn main() {
+fn main() -> Result<(), anyhow::Error> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     print!("$ ");
@@ -70,16 +70,7 @@ fn main() {
                             format!("{} is a shell builtin", command_to_describe)
                         }
                         Command::Invalid(cmd) => {
-                            let executables = path
-                                .iter()
-                                .map(|path| read_dir(path))
-                                .filter_map(Result::ok)
-                                .flatten()
-                                .collect::<Vec<_>>();
-                            let path_of_cmd = executables
-                                .into_iter()
-                                .find(|path| path.ends_with(&format!("/{}", &cmd)));
-
+                            let path_of_cmd = find_cmd_in_path(&cmd, &path);
                             if let Some(path) = path_of_cmd {
                                 format!("{} is {}", &cmd, path)
                             } else {
@@ -89,12 +80,33 @@ fn main() {
                     };
                     println!("{}", description);
                 }
-                command => println!("{}", command),
+                Command::Invalid(cmd) => {
+                    let path_of_cmd = find_cmd_in_path(&cmd, &path);
+                    if let Some(path) = path_of_cmd {
+                        let mut command = StdCommand::new(&path);
+                        if parsed_input.len() > 1 {
+                            command.args(&parsed_input[1..]);
+                        }
+                        command.status()?;
+                    } else {
+                        println!("{}: not found", cmd);
+                    }
+                }
             }
         }
         print!("$ ");
         stdout.flush().unwrap();
     }
+}
+
+/// Find a command in the PATH environment variable
+/// Return the path of the command if found
+fn find_cmd_in_path(cmd: &str, path: &[String]) -> Option<String> {
+    path.iter()
+        .map(|path| read_dir(path))
+        .filter_map(Result::ok)
+        .flatten()
+        .find(|path| path.ends_with(&format!("/{}", &cmd)))
 }
 
 /// List all files in a directory
