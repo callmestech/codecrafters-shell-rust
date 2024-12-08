@@ -10,6 +10,7 @@ enum Command {
     Exit,
     Echo,
     Invalid(String),
+    Pwd,
     Type,
 }
 
@@ -18,6 +19,7 @@ impl From<&str> for Command {
         match s {
             "exit" => Command::Exit,
             "echo" => Command::Echo,
+            "pwd" => Command::Pwd,
             "type" => Command::Type,
             command => Command::Invalid(command.to_string()),
         }
@@ -33,6 +35,7 @@ impl Display for Command {
                 let cmd = command.to_string();
                 write!(f, "{}: not found", cmd)
             }
+            Command::Pwd => write!(f, "pwd"),
             Command::Type => write!(f, "type"),
         }
     }
@@ -63,10 +66,14 @@ fn main() -> Result<(), anyhow::Error> {
                         println!("{}", parsed_input[1..].join(" "));
                     }
                 }
+                Command::Pwd => {
+                    let current_dir = std::env::current_dir()?;
+                    println!("{}", current_dir.display());
+                }
                 Command::Type => {
                     let command_to_describe: Command = parsed_input[1].into();
                     let description = match command_to_describe {
-                        Command::Exit | Command::Echo | Command::Type => {
+                        Command::Exit | Command::Echo | Command::Type | Command::Pwd => {
                             format!("{} is a shell builtin", command_to_describe)
                         }
                         Command::Invalid(cmd) => {
