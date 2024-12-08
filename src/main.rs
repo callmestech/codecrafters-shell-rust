@@ -5,6 +5,7 @@ use std::{
     process::{self},
 };
 
+#[derive(Debug, Clone)]
 enum Command {
     Exit,
     Echo,
@@ -42,6 +43,7 @@ fn main() {
     let mut stdout = io::stdout();
     print!("$ ");
     stdout.flush().unwrap();
+    let path = read_path_env();
     // Wait for user input
     loop {
         let mut input = String::new();
@@ -67,7 +69,23 @@ fn main() {
                         Command::Exit | Command::Echo | Command::Type => {
                             format!("{} is a shell builtin", command_to_describe)
                         }
-                        command => command.to_string(),
+                        Command::Invalid(cmd) => {
+                            let executables = path
+                                .iter()
+                                .map(|path| read_dir(path))
+                                .filter_map(Result::ok)
+                                .flatten()
+                                .collect::<Vec<_>>();
+                            let path_of_cmd = executables
+                                .into_iter()
+                                .find(|path| path.ends_with(&format!("/{}", &cmd)));
+
+                            if let Some(path) = path_of_cmd {
+                                format!("{} is {}", &cmd, path)
+                            } else {
+                                format!("{}: not found", &cmd)
+                            }
+                        }
                     };
                     println!("{}", description);
                 }
@@ -76,5 +94,24 @@ fn main() {
         }
         print!("$ ");
         stdout.flush().unwrap();
+    }
+}
+
+/// List all files in a directory
+fn read_dir(path: &str) -> io::Result<Vec<String>> {
+    let entries = std::fs::read_dir(path)?
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.path().to_str().map(|s| s.to_string()))
+        .collect::<Vec<_>>();
+    Ok(entries)
+}
+
+/// Read the PATH environment variable and return a vector of paths
+fn read_path_env() -> Vec<String> {
+    let path = std::env::var("PATH");
+
+    match path {
+        Ok(path) => path.split(':').map(|s| s.to_owned()).collect::<Vec<_>>(),
+        Err(_) => Vec::new(),
     }
 }
