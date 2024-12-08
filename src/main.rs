@@ -1,44 +1,20 @@
-use core::fmt;
 use std::io::{self, Write};
-use std::{
-    fmt::Display,
-    process::{self, Command as StdCommand},
-};
+use std::process::{self, Command as StdCommand};
+use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+use strum_macros::EnumString;
+
+#[derive(Debug, Clone, EnumString, strum_macros::Display)]
+#[strum(serialize_all = "lowercase")]
 enum Command {
+    Cd,
     Exit,
     Echo,
+    #[strum(to_string = "{0} is not found")]
+    #[strum(default)]
     Invalid(String),
     Pwd,
     Type,
-}
-
-impl From<&str> for Command {
-    fn from(s: &str) -> Self {
-        match s {
-            "exit" => Command::Exit,
-            "echo" => Command::Echo,
-            "pwd" => Command::Pwd,
-            "type" => Command::Type,
-            command => Command::Invalid(command.to_string()),
-        }
-    }
-}
-
-impl Display for Command {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Command::Exit => write!(f, "exit"),
-            Command::Echo => write!(f, "echo"),
-            Command::Invalid(command) => {
-                let cmd = command.to_string();
-                write!(f, "{}: not found", cmd)
-            }
-            Command::Pwd => write!(f, "pwd"),
-            Command::Type => write!(f, "type"),
-        }
-    }
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -56,10 +32,18 @@ fn main() -> Result<(), anyhow::Error> {
             continue;
         }
         let parsed_input: Vec<&str> = input.split_whitespace().collect();
-        let cmd: Option<Command> = parsed_input.first().map(|cmd| Command::from(*cmd));
+        let cmd: Option<Command> = parsed_input
+            .first()
+            .and_then(|cmd| Command::from_str(cmd).ok());
 
         if let Some(command) = cmd {
             match command {
+                Command::Cd => {
+                    if parsed_input.len() > 1 {
+                        let new_dir = parsed_input[1];
+                        std::env::set_current_dir(new_dir)?;
+                    }
+                }
                 Command::Exit => process::exit(0),
                 Command::Echo => {
                     if parsed_input.len() > 1 {
@@ -71,9 +55,13 @@ fn main() -> Result<(), anyhow::Error> {
                     println!("{}", current_dir.display());
                 }
                 Command::Type => {
-                    let command_to_describe: Command = parsed_input[1].into();
+                    let command_to_describe: Command = Command::from_str(parsed_input[1])?;
                     let description = match command_to_describe {
-                        Command::Exit | Command::Echo | Command::Type | Command::Pwd => {
+                        Command::Cd
+                        | Command::Exit
+                        | Command::Echo
+                        | Command::Type
+                        | Command::Pwd => {
                             format!("{} is a shell builtin", command_to_describe)
                         }
                         Command::Invalid(cmd) => {
