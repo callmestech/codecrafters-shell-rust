@@ -1,21 +1,9 @@
+use codecrafters_shell::{
+    algebra::CommandExt, command::Command as CommandDispatch, find_cmd_in_path, read_path_env,
+};
 use std::io::{self, Write};
-use std::process::{self, Command as StdCommand};
+use std::process::Command as StdCommand;
 use std::str::FromStr;
-
-use strum_macros::EnumString;
-
-#[derive(Debug, Clone, EnumString, strum_macros::Display)]
-#[strum(serialize_all = "lowercase")]
-enum Command {
-    Cd,
-    Exit,
-    Echo,
-    #[strum(to_string = "{0} is not found")]
-    #[strum(default)]
-    Invalid(String),
-    Pwd,
-    Type,
-}
 
 fn main() -> Result<(), anyhow::Error> {
     let stdin = io::stdin();
@@ -32,98 +20,28 @@ fn main() -> Result<(), anyhow::Error> {
             continue;
         }
         let parsed_input: Vec<&str> = input.split_whitespace().collect();
-        let cmd: Option<Command> = parsed_input
-            .first()
-            .and_then(|cmd| Command::from_str(cmd).ok());
 
-        if let Some(command) = cmd {
-            match command {
-                Command::Cd => {
-                    if parsed_input.len() > 1 {
-                        let new_dir = parsed_input[1];
-                        let exists = std::path::Path::new(new_dir).exists();
-                        if !exists {
-                            println!("cd: {}: No such file or directory", new_dir);
-                        } else {
-                            std::env::set_current_dir(new_dir)?;
-                        }
-                    }
+        let cmd: Option<CommandDispatch> = parsed_input
+            .first()
+            .and_then(|cmd| CommandDispatch::from_str(cmd).ok());
+
+        if let Some(cmd) = cmd {
+            cmd.execute(&parsed_input, &path)?;
+        } else {
+            let cmd = parsed_input.first().unwrap();
+            let path_of_cmd = find_cmd_in_path(cmd, &path);
+            if let Some(path) = path_of_cmd {
+                let mut command = StdCommand::new(&path);
+                if parsed_input.len() > 1 {
+                    command.args(&parsed_input[1..]);
                 }
-                Command::Exit => process::exit(0),
-                Command::Echo => {
-                    if parsed_input.len() > 1 {
-                        println!("{}", parsed_input[1..].join(" "));
-                    }
-                }
-                Command::Pwd => {
-                    let current_dir = std::env::current_dir()?;
-                    println!("{}", current_dir.display());
-                }
-                Command::Type => {
-                    let command_to_describe: Command = Command::from_str(parsed_input[1])?;
-                    let description = match command_to_describe {
-                        Command::Cd
-                        | Command::Exit
-                        | Command::Echo
-                        | Command::Type
-                        | Command::Pwd => {
-                            format!("{} is a shell builtin", command_to_describe)
-                        }
-                        Command::Invalid(cmd) => {
-                            let path_of_cmd = find_cmd_in_path(&cmd, &path);
-                            if let Some(path) = path_of_cmd {
-                                format!("{} is {}", &cmd, path)
-                            } else {
-                                format!("{}: not found", &cmd)
-                            }
-                        }
-                    };
-                    println!("{}", description);
-                }
-                Command::Invalid(cmd) => {
-                    let path_of_cmd = find_cmd_in_path(&cmd, &path);
-                    if let Some(path) = path_of_cmd {
-                        let mut command = StdCommand::new(&path);
-                        if parsed_input.len() > 1 {
-                            command.args(&parsed_input[1..]);
-                        }
-                        command.status()?;
-                    } else {
-                        println!("{}: not found", cmd);
-                    }
-                }
+                command.status()?;
+            } else {
+                println!("{}: not found", cmd);
             }
         }
+
         print!("$ ");
         stdout.flush().unwrap();
-    }
-}
-
-/// Find a command in the PATH environment variable
-/// Return the path of the command if found
-fn find_cmd_in_path(cmd: &str, path: &[String]) -> Option<String> {
-    path.iter()
-        .map(|path| read_dir(path))
-        .filter_map(Result::ok)
-        .flatten()
-        .find(|path| path.ends_with(&format!("/{}", &cmd)))
-}
-
-/// List all files in a directory
-fn read_dir(path: &str) -> io::Result<Vec<String>> {
-    let entries = std::fs::read_dir(path)?
-        .filter_map(Result::ok)
-        .filter_map(|entry| entry.path().to_str().map(|s| s.to_string()))
-        .collect::<Vec<_>>();
-    Ok(entries)
-}
-
-/// Read the PATH environment variable and return a vector of paths
-fn read_path_env() -> Vec<String> {
-    let path = std::env::var("PATH");
-
-    match path {
-        Ok(path) => path.split(':').map(|s| s.to_owned()).collect::<Vec<_>>(),
-        Err(_) => Vec::new(),
     }
 }
