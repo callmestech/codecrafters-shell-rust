@@ -41,7 +41,12 @@ fn main() -> Result<(), anyhow::Error> {
                 Command::Cd => {
                     if parsed_input.len() > 1 {
                         let new_dir = parsed_input[1];
-                        std::env::set_current_dir(new_dir)?;
+                        let exists = std::path::Path::new(new_dir).exists();
+                        if !exists {
+                            println!("cd: {}: No such file or directory", new_dir);
+                        } else {
+                            std::env::set_current_dir(new_dir)?;
+                        }
                     }
                 }
                 Command::Exit => process::exit(0),
