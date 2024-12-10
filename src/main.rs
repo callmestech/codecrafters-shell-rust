@@ -1,3 +1,4 @@
+use codecrafters_shell::parse_input;
 use codecrafters_shell::{
     algebra::CommandExt, command::Command as CommandDispatch, find_cmd_in_path, read_path_env,
 };
@@ -19,7 +20,9 @@ fn main() -> Result<(), anyhow::Error> {
         if input.is_empty() {
             continue;
         }
-        let parsed_input: Vec<&str> = input.split_whitespace().collect();
+
+        let parsed_input = parse_input(input);
+        let parsed_input = parsed_input.iter().map(|s| s.as_ref()).collect::<Vec<_>>();
 
         let cmd: Option<CommandDispatch> = parsed_input
             .first()
