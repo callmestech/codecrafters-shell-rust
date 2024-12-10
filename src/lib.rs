@@ -1,4 +1,4 @@
-use std::io;
+use std::{collections::HashSet, io};
 
 pub mod algebra;
 pub mod command;
@@ -35,34 +35,54 @@ pub fn read_path_env() -> Vec<String> {
 /// Parse the input string and return a vector of arguments
 pub fn parse_input(input: &str) -> Vec<String> {
     let (mut args, _, arg_acc) = input.chars().fold(
-        (vec![], vec![], vec![]),
-        |(mut args, mut quotes_stack, mut arg_acc), char| {
-            // The quotes are opening
-            if char == '\'' && quotes_stack.is_empty() {
-                quotes_stack.push(char);
-                (args, quotes_stack, arg_acc)
-                // The quotes are closing
+        (vec![], HashSet::new(), vec![]),
+        |(mut args, mut quotes_set, mut arg_acc), char| {
+            // The double quotes are opening
+            if char == '"' && !quotes_set.contains(&char) {
+                quotes_set.insert(char);
+                (args, quotes_set, arg_acc)
+                // The double quotes are closing
                 // So we push the word between quotes to args and reset the arg_acc
-            } else if char == '\'' && quotes_stack.last() == Some(&'\'') {
-                quotes_stack.pop();
+            } else if char == '"' && quotes_set.contains(&char) {
+                quotes_set.remove(&char);
                 if !arg_acc.is_empty() {
                     args.push(arg_acc.into_iter().collect::<String>());
                     arg_acc = vec![];
                 }
-                (args, quotes_stack, arg_acc)
+                (args, quotes_set, arg_acc)
+            } else if char == '\'' && !quotes_set.contains(&char) {
+                // it means we encountered a single quote
+                // inside of the opened double quotes
+                // so we add it to the arg_acc
+                if quotes_set.contains(&'"') {
+                    arg_acc.push(char);
+                } else {
+                    // The single quotes are opening
+                    quotes_set.insert(char);
+                }
+                (args, quotes_set, arg_acc)
+                // The single quotes are closing
+                // So we push the word between quotes to args and reset the arg_acc
+            } else if char == '\'' && quotes_set.contains(&char) {
+                quotes_set.remove(&char);
+                if !arg_acc.is_empty() {
+                    args.push(arg_acc.into_iter().collect::<String>());
+                    arg_acc = vec![];
+                }
+                (args, quotes_set, arg_acc)
                 // If we have a space and the quotes_stack is empty
                 // We don't need to add the space to the arg_acc
-            } else if char == ' ' && quotes_stack.is_empty() {
+            } else if char == ' ' && quotes_set.is_empty() {
                 // If the arg_acc is not empty we add it to the args
                 // and reset the arg_acc
                 if !arg_acc.is_empty() {
                     args.push(arg_acc.into_iter().collect());
                     arg_acc = vec![];
                 }
-                (args, quotes_stack, arg_acc)
+                (args, quotes_set, arg_acc)
             } else {
                 arg_acc.push(char);
-                (args, quotes_stack, arg_acc)
+                (args, quotes_set, arg_acc)
             }
         },
     );
@@ -129,6 +149,27 @@ mod tests {
             "/tmp/baz/f   79",
             "/tmp/baz/f   27",
         ];
+        assert_eq!(parse_input(input), expected);
+    }
+
+    #[test]
+    fn test_parse_input_with_double_quotes() {
+        let input = r#"echo "quz  hello"  "bar""#;
+        let expected = vec!["echo", "quz  hello", "bar"];
+        assert_eq!(parse_input(input), expected);
+    }
+
+    #[test]
+    fn test_parse_input_with_double_quotes_with_a_single_quote_inside() {
+        let input = r#"echo "bar"  "shell's"  "foo""#;
+        let expected = vec!["echo", "bar", "shell's", "foo"];
+        assert_eq!(parse_input(input), expected);
+    }
+
+    #[test]
+    fn test_parse_input_with_with_single_and_double_quotes() {
+        let input = r#"echo 'bar'  "shell's"  'foo'"#;
+        let expected = vec!["echo", "bar", "shell's", "foo"];
         assert_eq!(parse_input(input), expected);
     }
 }
