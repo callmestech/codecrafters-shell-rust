@@ -43,9 +43,16 @@ pub fn parse_input(input: &str) -> Vec<String> {
         (vec![], HashSet::new(), vec![]),
         |(mut args, mut special_symbols_set, mut arg_acc), char| {
             match char {
-                // The double quotes are opening
                 DOUBLE_QUOTE if !special_symbols_set.contains(&char) => {
-                    special_symbols_set.insert(char);
+                    // it means we encountered a double quote
+                    // inside of the opened single quotes
+                    // so we add it to the arg_acc
+                    if special_symbols_set.contains(&SINGLE_QUOTE) {
+                        arg_acc.push(char);
+                    } else {
+                        // The double quotes are opening
+                        special_symbols_set.insert(char);
+                    }
                 }
                 // The double quotes are closing
                 // So we push the word between quotes to args and reset the arg_acc
@@ -205,5 +212,23 @@ mod tests {
         let input = r#" echo hello\ \ \ \ \ \ shell"#;
         let expected = vec!["echo", "hello      shell"];
         assert_eq!(parse_input(input), expected);
+    }
+
+    #[test]
+    fn test_parse_input_with_a_backslash_inside_of_single_quotes() {
+        let test_cases = vec![
+            (
+                r#"echo 'shell\\\nscript'"#,
+                vec!["echo", r#"shell\\\nscript"#],
+            ),
+            (
+                r#"echo 'example\"testhello\"shell'"#,
+                vec!["echo", r#"example\"testhello\"shell"#],
+            ),
+        ];
+
+        for (input, expected) in test_cases {
+            assert_eq!(parse_input(input), expected);
+        }
     }
 }
