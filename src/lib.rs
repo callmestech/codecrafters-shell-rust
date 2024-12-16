@@ -201,13 +201,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_input_with_a_backslash_inside_of_double_quotes() {
-        let input = r#"echo "before\   after""#;
-        let expected = vec!["echo", r#"before\   after"#];
-        assert_eq!(parse_input(input), expected);
-    }
-
-    #[test]
     fn test_parse_input_with_multiples_backslashes() {
         let input = r#" echo hello\ \ \ \ \ \ shell"#;
         let expected = vec!["echo", "hello      shell"];
@@ -224,6 +217,28 @@ mod tests {
             (
                 r#"echo 'example\"testhello\"shell'"#,
                 vec!["echo", r#"example\"testhello\"shell"#],
+            ),
+        ];
+
+        for (input, expected) in test_cases {
+            assert_eq!(parse_input(input), expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_input_with_a_backslash_inside_of_double_quotes() {
+        let test_cases = vec![
+            (
+                r#"echo "before\   after""#,
+                vec!["echo", r#"before\   after"#],
+            ),
+            (
+                r#"echo "hello'script'\\n'world""#,
+                vec!["echo", r#"hello'script'\n'world"#],
+            ),
+            (
+                r#"echo "hello\"insidequotes"script\""#,
+                vec!["echo", r#"hello"insidequotesscript""#],
             ),
         ];
 
