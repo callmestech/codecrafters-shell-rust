@@ -45,7 +45,7 @@ pub fn parse_input(input: &str) -> Vec<String> {
     for char in input.chars() {
         match char {
             DOUBLE_QUOTE if !special_symbols_set.contains(&char) => {
-                if special_symbols_set.contains(&'\'') {
+                if special_symbols_set.contains(&SINGLE_QUOTE) {
                     arg_acc.push(char);
                 } else {
                     special_symbols_set.insert(char);
@@ -58,7 +58,7 @@ pub fn parse_input(input: &str) -> Vec<String> {
                 }
             }
             SINGLE_QUOTE if !special_symbols_set.contains(&char) => {
-                if special_symbols_set.contains(&'"') {
+                if special_symbols_set.contains(&DOUBLE_QUOTE) {
                     arg_acc.push(char);
                 } else {
                     special_symbols_set.insert(char);
@@ -76,8 +76,8 @@ pub fn parse_input(input: &str) -> Vec<String> {
                 }
             }
             SPACE if !special_symbols_set.is_empty() => {
-                if special_symbols_set.contains(&'\\') {
-                    special_symbols_set.remove(&'\\');
+                if special_symbols_set.contains(&BACKSLASH) {
+                    special_symbols_set.remove(&BACKSLASH);
                 }
                 arg_acc.push(char);
             }
