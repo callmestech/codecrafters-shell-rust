@@ -37,86 +37,63 @@ pub fn read_path_env() -> Vec<String> {
     }
 }
 
-/// Parse the input string and return a vector of arguments
 pub fn parse_input(input: &str) -> Vec<String> {
-    let (mut args, _, arg_acc) = input.chars().fold(
-        (vec![], HashSet::new(), vec![]),
-        |(mut args, mut special_symbols_set, mut arg_acc), char| {
-            match char {
-                DOUBLE_QUOTE if !special_symbols_set.contains(&char) => {
-                    // it means we encountered a double quote
-                    // inside of the opened single quotes
-                    // so we add it to the arg_acc
-                    if special_symbols_set.contains(&SINGLE_QUOTE) {
-                        arg_acc.push(char);
-                    } else {
-                        // The double quotes are opening
-                        special_symbols_set.insert(char);
-                    }
-                }
-                // The double quotes are closing
-                // So we push the word between quotes to args and reset the arg_acc
-                DOUBLE_QUOTE if special_symbols_set.contains(&char) => {
-                    special_symbols_set.remove(&char);
-                    if !arg_acc.is_empty() {
-                        args.push(arg_acc.into_iter().collect::<String>());
-                        arg_acc = vec![];
-                    }
-                }
-                SINGLE_QUOTE if !special_symbols_set.contains(&char) => {
-                    // it means we encountered a single quote
-                    // inside of the opened double quotes
-                    // so we add it to the arg_acc
-                    if special_symbols_set.contains(&DOUBLE_QUOTE) {
-                        arg_acc.push(char);
-                    } else {
-                        // The single quotes are opening
-                        special_symbols_set.insert(char);
-                    }
-                }
-                // The single quotes are closing
-                // So we push the word between quotes to args and reset the arg_acc
-                SINGLE_QUOTE if special_symbols_set.contains(&char) => {
-                    special_symbols_set.remove(&char);
-                    if !arg_acc.is_empty() {
-                        args.push(arg_acc.into_iter().collect::<String>());
-                        arg_acc = vec![];
-                    }
-                }
-                // If we have a space and the quotes_stack is empty
-                // We don't need to add the space to the arg_acc
-                SPACE if special_symbols_set.is_empty() => {
-                    // If the arg_acc is not empty we add it to the args
-                    // and reset the arg_acc
-                    if !arg_acc.is_empty() {
-                        args.push(arg_acc.into_iter().collect());
-                        arg_acc = vec![];
-                    }
-                }
-                SPACE if !special_symbols_set.is_empty() => {
-                    // If we have a space and the special_symbols_set is not empty
-                    // we add the space to the arg_acc
-                    // and remove the backslash from the special_symbols_set
-                    if special_symbols_set.contains(&BACKSLASH) {
-                        special_symbols_set.remove(&BACKSLASH);
-                    }
+    let mut args = Vec::new();
+    let mut special_symbols_set = HashSet::new();
+    let mut arg_acc = Vec::new();
+
+    for char in input.chars() {
+        match char {
+            DOUBLE_QUOTE if !special_symbols_set.contains(&char) => {
+                if special_symbols_set.contains(&'\'') {
                     arg_acc.push(char);
-                }
-                BACKSLASH if special_symbols_set.is_empty() => {
+                } else {
                     special_symbols_set.insert(char);
                 }
-                _ => {
-                    arg_acc.push(char);
+            }
+            DOUBLE_QUOTE if special_symbols_set.contains(&char) => {
+                special_symbols_set.remove(&char);
+                if !arg_acc.is_empty() {
+                    args.push(arg_acc.drain(..).collect());
                 }
             }
-
-            (args, special_symbols_set, arg_acc)
-        },
-    );
-    // If the arg_acc is not empty we add it to the args
-    if !arg_acc.is_empty() {
-        args.push(arg_acc.into_iter().collect::<_>());
+            SINGLE_QUOTE if !special_symbols_set.contains(&char) => {
+                if special_symbols_set.contains(&'"') {
+                    arg_acc.push(char);
+                } else {
+                    special_symbols_set.insert(char);
+                }
+            }
+            SINGLE_QUOTE if special_symbols_set.contains(&char) => {
+                special_symbols_set.remove(&char);
+                if !arg_acc.is_empty() {
+                    args.push(arg_acc.drain(..).collect());
+                }
+            }
+            SPACE if special_symbols_set.is_empty() => {
+                if !arg_acc.is_empty() {
+                    args.push(arg_acc.drain(..).collect());
+                }
+            }
+            SPACE if !special_symbols_set.is_empty() => {
+                if special_symbols_set.contains(&'\\') {
+                    special_symbols_set.remove(&'\\');
+                }
+                arg_acc.push(char);
+            }
+            BACKSLASH if special_symbols_set.is_empty() => {
+                special_symbols_set.insert(char);
+            }
+            _ => {
+                arg_acc.push(char);
+            }
+        }
     }
+
+    if !arg_acc.is_empty() {
+        args.push(arg_acc.into_iter().collect());
+    }
+
     args
 }
 
