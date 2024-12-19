@@ -1,6 +1,6 @@
-use codecrafters_shell::parse_input;
 use codecrafters_shell::{
-    algebra::CommandExt, command::Command as CommandDispatch, find_cmd_in_path, read_path_env,
+    algebra::CommandExt, command::Command as CommandDispatch, find_cmd_in_path, parse_input,
+    read_path_env,
 };
 use std::io::{self, Write};
 use std::process::Command as StdCommand;
@@ -40,7 +40,7 @@ fn main() -> Result<(), anyhow::Error> {
                 }
                 command.status()?;
             } else {
-                println!("{}: not found", cmd);
+                println!("{}: command not found", cmd);
             }
         }
 
