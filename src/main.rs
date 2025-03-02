@@ -33,8 +33,9 @@ fn main() -> Result<(), anyhow::Error> {
         } else {
             let cmd = parsed_input.first().unwrap();
             let path_of_cmd = find_cmd_in_path(cmd, &path);
-            if let Some(path) = path_of_cmd {
-                let mut command = StdCommand::new(&path);
+
+            if path_of_cmd.is_some() {
+                let mut command = StdCommand::new(cmd);
                 if parsed_input.len() > 1 {
                     command.args(&parsed_input[1..]);
                 }
